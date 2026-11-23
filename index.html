@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>मेरा रोज़ का खर्चा</title>
+<style>
+:root{--bg:#faf5ec;--card:#fff;--text:#14263a;--muted:#5b6672;--line:#e3d9c6;--accent:#c0362c;--accent-text:#fff;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1b29;--card:#172738;--text:#f1ece2;--muted:#9fb0c0;--line:#2a3d52;--accent:#e2564b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1b29;--card:#172738;--text:#f1ece2;--muted:#9fb0c0;--line:#2a3d52;--accent:#e2564b;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Noto Sans Devanagari",system-ui,-apple-system,Segoe UI,Arial,sans-serif;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:24px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 16px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:16px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media(min-width:560px){.grid{grid-template-columns:repeat(3,1fr)}}
+button{cursor:pointer;border:0;border-radius:10px;padding:12px 18px;font-size:16px;font-weight:600;background:var(--accent);color:var(--accent-text)}
+.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:14px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:560px){.stats{grid-template-columns:repeat(3,1fr)}}
+.stat{border:1px solid var(--line);border-radius:10px;padding:10px}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:12px;color:var(--muted)}
+.total{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.total span{color:var(--accent-text);opacity:.9}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+th,td{padding:8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td button{padding:4px 10px;font-size:13px;background:transparent;color:var(--accent);border:1px solid var(--line)}
+.empty{color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>मेरा रोज़ का खर्चा</h1>
+<p class="sub">तारीख़ चुनें, खर्चा भरें और सेव करें। महीने का कुल अपने-आप बन जाएगा।</p>
+
+<div class="card">
+  <div class="grid">
+    <div><label for="date">तारीख़</label><input type="date" id="date"></div>
+  </div>
+  <div class="grid" id="fields" style="margin-top:12px"></div>
+  <div class="row"><button id="save">सेव करें</button><span id="msg" class="sub" style="margin:0"></span></div>
+</div>
+
+<div class="card">
+  <div class="grid"><div><label for="month">महीना</label><input type="month" id="month"></div></div>
+  <div class="stats" id="stats" style="margin-top:14px"></div>
+</div>
+
+<div class="card">
+  <div class="scroll"><table id="tbl"></table></div>
+  <p class="empty" id="empty" hidden>इस महीने में अभी कोई एंट्री नहीं है।</p>
+</div>
+<p class="sub">डेटा सिर्फ़ इसी ब्राउज़र/फ़ोन में सेव होता है।</p>
+</div>
+
+<script>
+const ITEMS=[['rapido','रैपिडो'],['snacks','चिप्स/नाश्ता'],['ac','AC'],['pg','PG चार्ज'],['chai','चाय/ड्रिंक'],['other','बाकी']];
+const KEY='mera-kharcha-v1';
+let data={};
+try{data=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){data={}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+const $=id=>document.getElementById(id);
+const fmt=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+const today=new Date(),pad=n=>String(n).padStart(2,'0');
+const iso=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+$('date').value=iso; $('month').value=iso.slice(0,7);
+$('fields').innerHTML=ITEMS.map(([k,n])=>`<div><label for="f_${k}">${n} (₹)</label><input type="number" inputmode="decimal" min="0" id="f_${k}" placeholder="0"></div>`).join('');
+function load(){const e=data[$('date').value]||{};ITEMS.forEach(([k])=>$('f_'+k).value=e[k]||'')}
+$('date').addEventListener('change',()=>{load();$('msg').textContent=''});
+$('month').addEventListener('change',render);
+$('save').addEventListener('click',()=>{
+  const d=$('date').value; if(!d){$('msg').textContent='पहले तारीख़ चुनें';return}
+  const e={};ITEMS.forEach(([k])=>{const v=parseFloat($('f_'+k).value);if(v>0)e[k]=v});
+  if(Object.keys(e).length)data[d]=e;else delete data[d];
+  persist();$('msg').textContent='सेव हो गया ✓';$('month').value=d.slice(0,7);render();
+});
+function render(){
+  const m=$('month').value;
+  const days=Object.keys(data).filter(d=>d.startsWith(m)).sort();
+  const sums={};ITEMS.forEach(([k])=>sums[k]=0);let grand=0;
+  days.forEach(d=>ITEMS.forEach(([k])=>{const v=data[d][k]||0;sums[k]+=v;grand+=v}));
+  $('stats').innerHTML=ITEMS.map(([k,n])=>`<div class="stat"><span>${n}</span><b>${fmt(sums[k])}</b></div>`).join('')+
+   `<div class="stat total"><span>महीने का कुल</span><b>${fmt(grand)}</b></div>`+
+   `<div class="stat"><span>रोज़ का औसत (${days.length} दिन)</span><b>${fmt(days.length?grand/days.length:0)}</b></div>`;
+  $('empty').hidden=days.length>0;
+  $('tbl').innerHTML=days.length?'<tr><th>तारीख़</th>'+ITEMS.map(([,n])=>`<th>${n}</th>`).join('')+'<th>कुल</th><th></th></tr>'+
+   days.map(d=>{const e=data[d];const t=ITEMS.reduce((a,[k])=>a+(e[k]||0),0);
+    return `<tr><td>${d.slice(8)}/${d.slice(5,7)}</td>`+ITEMS.map(([k])=>`<td>${e[k]?fmt(e[k]):'-'}</td>`).join('')+`<td><b>${fmt(t)}</b></td><td><button data-d="${d}">हटाएँ</button></td></tr>`}).join(''):'';
+  document.querySelectorAll('#tbl button').forEach(b=>b.onclick=()=>{delete data[b.dataset.d];persist();load();render()});
+}
+load();render();
+</script>
+</body>
+</html>
